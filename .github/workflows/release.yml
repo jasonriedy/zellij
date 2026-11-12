@@ -34,7 +34,7 @@ jobs:
         function Get-ProductCode($path) {
             $db = $installer.OpenDatabase($path, 0)
             $view = $db.OpenView("SELECT Value FROM Property WHERE Property = 'ProductCode'")
-            $view.Execute()
+            [void]$view.Execute()
             $record = $view.Fetch()
             $code = $record.StringData(1)
             [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($record)
@@ -50,18 +50,26 @@ jobs:
                 throw "MSI operation $operation failed: $($p.ExitCode)"
             }
         }
-        $oldCode = Get-ProductCode $oldMsi
-        $newCode = Get-ProductCode $newMsi
+        function Test-ProductRegistered([string]$code) {
+            foreach ($root in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall') {
+                if (Test-Path (Join-Path $root $code)) { return $true }
+            }
+            return $false
+        }
+        [string]$oldCode = Get-ProductCode $oldMsi
+        [string]$newCode = Get-ProductCode $newMsi
+        if ($oldCode -notmatch '^\{[0-9A-Fa-f-]{36}\}$' -or $newCode -notmatch '^\{[0-9A-Fa-f-]{36}\}$') { throw "Invalid product codes: $oldCode / $newCode" }
+        Write-Output "Product codes: x64 $oldCode; ARM64 $newCode"
         Invoke-Msi '/i' $oldMsi 'install-old.log'
-        if ($installer.ProductState($oldCode) -ne 5) { throw 'Previous x64 product is not installed' }
+        if (-not (Test-ProductRegistered $oldCode)) { throw 'Previous x64 product is not registered' }
         $installed = Join-Path $env:LOCALAPPDATA 'Zellij'
         $cli = Join-Path $installed 'zellij.exe'
         $version = & $cli --version
         if ($LASTEXITCODE -ne 0 -or $version -notmatch '0\.45\.1') { throw "Old CLI failed: $version" }
         Invoke-Msi '/i' $newMsi 'upgrade-arm64.log'
         try {
-            if ($installer.ProductState($oldCode) -ne -1) { throw 'Old x64 product was not removed' }
-            if ($installer.ProductState($newCode) -ne 5) { throw 'ARM64 product is not installed' }
+            if (Test-ProductRegistered $oldCode) { throw 'Old x64 product was not removed' }
+            if (-not (Test-ProductRegistered $newCode)) { throw 'ARM64 product is not registered' }
             foreach ($name in 'zellij.exe', 'zellij-terminal.exe') {
                 $bytes = [System.IO.File]::ReadAllBytes((Join-Path $installed $name))
                 $pe = [BitConverter]::ToInt32($bytes, 0x3c)
