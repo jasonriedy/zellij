@@ -79,6 +79,7 @@ jobs:
           - macos x64
           - macos aarch64
           - windows x64
+          - windows aarch64
         include:
           - build: linux musl x64
             os: ubuntu-latest
@@ -99,6 +100,10 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
             wix_arch: x64
+          - build: windows aarch64
+            os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            wix_arch: arm64
     steps:
       - name: Set release tag (Unix)
         if: runner.os != 'Windows'
@@ -286,6 +291,7 @@ jobs:
           - macos x64
           - macos aarch64
           - windows x64
+          - windows aarch64
         include:
           - build: linux musl x64
             os: ubuntu-latest
@@ -306,6 +312,10 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
             wix_arch: x64
+          - build: windows aarch64
+            os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            wix_arch: arm64
     steps:
       - name: Set release tag (Unix)
         if: runner.os != 'Windows'
