@@ -2,7 +2,7 @@ name: Validate Windows ARM64 upgrades
 'on':
   workflow_dispatch: null
 permissions:
-  contents: read
+  contents: write
 jobs:
   upgrade:
     runs-on: windows-11-arm
